@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Pathogen Simulators | HIV, Syphilis & More</title>
+    <meta name="description" content="Interactive medical simulators for HIV, syphilis and more. Learn why timely treatment matters through gameplay. Free, anonymous, open source.">
+    <meta name="keywords" content="hiv, syphilis, medical simulator, health game, treatment, std education, pathogen">
+    <meta name="author" content="MarketGlare">
+    <meta name="theme-color" content="#0a0f1c">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="Pathogen Simulators">
+    <meta property="og:description" content="Interactive games that teach the importance of timely treatment. HIV, syphilis and more coming soon.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://marketglare.github.io/">
+    <meta property="og:image" content="https://marketglare.github.io/preview.png">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Pathogen Simulators">
+    <meta name="twitter:description" content="Learn why treatment timing matters through interactive gameplay.">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦠</text></svg>">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0f1c 0%, #0c1425 50%, #0a0f1c 100%);
+            color: #e8edf5;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* Language Switcher */
+        .lang-switch {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .lang-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #a0a8c0;
+            padding: 0.4rem 0.9rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .lang-btn:hover, .lang-btn.active {
+            background: rgba(72, 187, 255, 0.2);
+            border-color: #48bbff;
+            color: #48bbff;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(72, 187, 255, 0.1);
+            border: 1px solid rgba(72, 187, 255, 0.3);
+            color: #48bbff;
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 3.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #48bbff 50%, #a855f7 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .subhead {
+            font-size: 1.2rem;
+            color: #8a92b0;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Description Box */
+        .description-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 32px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .description-box p {
+            color: #c0c8e0;
+            max-width: 800px;
+            margin: 0 auto;
+            font-size: 1.05rem;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .card {
+            background: rgba(20, 28, 45, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 32px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(72, 187, 255, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card h3 span {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #6c7a9e;
+            margin-left: 0.5rem;
+        }
+
+        .card-description {
+            color: #9aa4c4;
+            margin: 1rem 0 1.5rem;
+            line-height: 1.5;
+        }
+
+        .card-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #48bbff;
+            color: #0a0f1c;
+            padding: 0.75rem 1.5rem;
+            border-radius: 40px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .card-link:hover {
+            background: #7acdff;
+            gap: 0.8rem;
+        }
+
+        /* Crypto Box */
+        .crypto-box {
+            background: rgba(10, 20, 30, 0.6);
+            border: 1px solid rgba(72, 187, 255, 0.2);
+            border-radius: 32px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .crypto-box h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #48bbff;
+        }
+
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .crypto-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .crypto-code {
+            background: #0a0f1c;
+            padding: 0.75rem;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            color: #48bbff;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .crypto-code:hover {
+            background: #1a2538;
+        }
+
+        .donate-btn {
+            background: linear-gradient(135deg, #48bbff, #a855f7);
+            border: none;
+            color: white;
+            padding: 0.8rem 1.8rem;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .donate-btn:hover {
+            transform: scale(1.02);
+        }
+
+        .email {
+            margin-top: 1rem;
+            text-align: center;
+            color: #7a85ad;
+        }
+
+        .email a {
+            color: #48bbff;
+            text-decoration: none;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #121826;
+            border: 1px solid #2a3348;
+            border-radius: 32px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #8a92b0;
+        }
+
+        .modal-address {
+            background: #0a0f1c;
+            padding: 1rem;
+            border-radius: 16px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 1rem 0;
+            font-size: 0.8rem;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding-top: 3rem;
+            color: #5a6585;
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 700px) {
+            h1 { font-size: 2.2rem; }
+            .container { padding: 1rem 1rem 3rem; }
+            .card h3 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Language Switcher -->
+        <div class="lang-switch" id="langSwitcher"></div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="badge" data-i18n="badge">INTERACTIVE MEDICAL SIMULATORS</div>
+            <h1 data-i18n="title">Pathogen Simulators<br>HIV · Syphilis · More</h1>
+            <p class="subhead" data-i18n="subhead">Learn through gameplay — understand the consequences of delayed treatment</p>
+        </div>
+
+        <!-- Description -->
+        <div class="description-box">
+            <p data-i18n="description">I wanted users to experience diseases and the consequences of untreated conditions in a safe, interactive way. Syphilis can hide in the body for years. HIV requires lifelong discipline — precise timing, no breaks. These simulators make that tangible.</p>
+        </div>
+
+        <!-- Cards -->
+        <div class="cards-grid" id="cardsContainer"></div>
+
+        <!-- Crypto & Donations -->
+        <div class="crypto-box">
+            <h3 data-i18n="crypto_title">Why cryptocurrency?</h3>
+            <div class="crypto-grid">
+                <div data-i18n="crypto_anon">🔒 Anonymous — no one will know you</div>
+                <div data-i18n="crypto_fast">⚡ Instant — no banks, no delays</div>
+                <div data-i18n="crypto_global">🌍 Global — from any country</div>
+                <div data-i18n="crypto_value">📉 It's cheap now — your donation has more weight</div>
+            </div>
+            <div style="text-align: center; margin: 1rem 0;">
+                <button class="donate-btn" id="donateBtn" data-i18n="donate_btn">❤️ Support the project</button>
+            </div>
+            <div class="email">
+                📧 <a href="mailto:marketglare@gmail.com">marketglare@gmail.com</a> (EN/RU)
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🦠 Open source · Anonymous · Available in 8 languages</p>
+            <p style="margin-top: 0.5rem;">&copy; 2026 Pathogen Simulators — not medical advice, always consult a doctor</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="donateModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="closeModal">&times;</span>
+            <h3>❤️ Support the project</h3>
+            <p><strong>USDT (TRC-20):</strong></p>
+            <div class="modal-address" id="usdtAddr">TSR63AMR4ToAyhFvGsBJ4C8ikAeM6Fn5TT</div>
+            <p><strong>SHIB (ERC-20):</strong></p>
+            <div class="modal-address" id="shibAddr">0x4C97c50666a5553326d2289e2dD683dE30145A33</div>
+            <p style="font-size: 0.8rem; margin-top: 1rem;">⚡ Click address to copy</p>
+        </div>
+    </div>
+
+    <script>
+        // ========== TRANSLATIONS ==========
+        const translations = {
+            en: {
+                badge: "INTERACTIVE MEDICAL SIMULATORS",
+                title: "Pathogen Simulators<br>HIV · Syphilis · More",
+                subhead: "Learn through gameplay — understand the consequences of delayed treatment",
+                description: "I wanted users to experience diseases and the consequences of untreated conditions in a safe, interactive way. Syphilis can hide in the body for years. HIV requires lifelong discipline — precise timing, no breaks. These simulators make that tangible.",
+                syph_title: "Syphilis",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "Syphilis is a great simulator. Our interactive game shows how it disguises itself and why it's important to get treatment promptly. Administer medication and defeat the bacteria.",
+                hiv_title: "HIV",
+                hiv_badge: "Immunodeficiency Virus",
+                hiv_desc: "An interactive game showing why it's important to start HIV treatment on time. Administer medication and defeat the virus. Lifelong discipline matters.",
+                crypto_title: "Why cryptocurrency?",
+                crypto_anon: "🔒 Anonymous — no one will know you",
+                crypto_fast: "⚡ Instant — no banks, no delays",
+                crypto_global: "🌍 Global — from any country",
+                crypto_value: "📉 It's cheap now — your donation has more weight",
+                donate_btn: "❤️ Support the project",
+                footer: "Open source · Anonymous · Available in 8 languages"
+            },
+            ru: {
+                badge: "ИНТЕРАКТИВНЫЕ МЕДИЦИНСКИЕ СИМУЛЯТОРЫ",
+                title: "Симуляторы патогенов<br>ВИЧ · Сифилис · Другие",
+                subhead: "Обучайся через игру — пойми последствия несвоевременного лечения",
+                description: "Я хотел, чтобы пользователи в игровой форме знакомились с болезнями и последствиями при их несвоевременном лечении. Сифилис может годами прятаться в организме. ВИЧ лечится пожизненно — важна точность приёма препаратов. Эти симуляторы делают это понятным.",
+                syph_title: "Сифилис",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "Сифилис — великий симулянт. Наша игра показывает, как он маскируется и почему важно начать лечение вовремя. Принимайте лекарство и побеждайте бактерию.",
+                hiv_title: "ВИЧ",
+                hiv_badge: "Вирус иммунодефицита",
+                hiv_desc: "Интерактивная игра, показывающая, почему важно вовремя начать лечение ВИЧ. Принимайте лекарство и побеждайте вирус. Пожизненная дисциплина имеет значение.",
+                crypto_title: "Почему криптовалюта?",
+                crypto_anon: "🔒 Анонимно — никто вас не узнает",
+                crypto_fast: "⚡ Мгновенно — без банков и задержек",
+                crypto_global: "🌍 Глобально — из любой страны",
+                crypto_value: "📉 Сейчас это дёшево! Ваше пожертвование имеет больший вес",
+                donate_btn: "❤️ Поддержать проект",
+                footer: "Открытый код · Анонимно · Доступно на 8 языках"
+            },
+            fr: {
+                badge: "SIMULATEURS MÉDICAUX INTERACTIFS",
+                title: "Simulateurs de Pathogènes<br>VIH · Syphilis · Plus",
+                subhead: "Apprenez en jouant — comprenez les conséquences d'un traitement tardif",
+                description: "Je voulais que les utilisateurs découvrent les maladies et les conséquences de l'absence de traitement de manière interactive. La syphilis peut se cacher pendant des années. Le VIH nécessite une discipline à vie. Ces simulateurs rendent tangible cette réalité.",
+                syph_title: "Syphilis",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "La syphilis est un grand simulateur. Notre jeu montre comment elle se cache et pourquoi il est important de la traiter rapidement. Administrez le médicament et battez la bactérie.",
+                hiv_title: "VIH",
+                hiv_badge: "Virus de l'Immunodéficience",
+                hiv_desc: "Un jeu interactif montrant pourquoi il est important de commencer le traitement du VIH à temps. Administrez le médicament et battez le virus.",
+                crypto_title: "Pourquoi la cryptomonnaie?",
+                crypto_anon: "🔒 Anonyme — personne ne vous reconnaîtra",
+                crypto_fast: "⚡ Instantané — sans banques",
+                crypto_global: "🌍 Mondial — depuis n'importe quel pays",
+                crypto_value: "📉 C'est bon marché maintenant — votre don a plus de poids",
+                donate_btn: "❤️ Soutenir le projet",
+                footer: "Open source · Anonyme · Disponible en 8 langues"
+            },
+            de: {
+                badge: "INTERAKTIVE MEDIZINISCHE SIMULATIONEN",
+                title: "Krankheits-Simulatoren<br>HIV · Syphilis · Mehr",
+                subhead: "Lerne durch Spielen — verstehe die Folgen verspäteter Behandlung",
+                description: "Ich wollte, dass Nutzer Krankheiten und die Folgen unbehandelter Zustände spielerisch erleben. Syphilis kann sich jahrelang verstecken. HIV erfordert lebenslange Disziplin. Diese Simulatoren machen das begreifbar.",
+                syph_title: "Syphilis",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "Syphilis ist ein großartiger Simulant. Unser Spiel zeigt, wie sie sich tarnt und warum rechtzeitige Behandlung wichtig ist. Verabreiche Medikamente und besiege die Bakterien.",
+                hiv_title: "HIV",
+                hiv_badge: "Immunschwäche-Virus",
+                hiv_desc: "Ein interaktives Spiel, das zeigt, warum eine rechtzeitige HIV-Behandlung wichtig ist. Verabreiche Medikamente und besiege das Virus.",
+                crypto_title: "Warum Kryptowährung?",
+                crypto_anon: "🔒 Anonym — niemand erfährt es",
+                crypto_fast: "⚡ Sofort — ohne Banken",
+                crypto_global: "🌍 Global — aus jedem Land",
+                crypto_value: "📉 Jetzt günstig — Ihre Spende hat mehr Gewicht",
+                donate_btn: "❤️ Projekt unterstützen",
+                footer: "Open Source · Anonym · Verfügbar in 8 Sprachen"
+            },
+            es: {
+                badge: "SIMULADORES MÉDICOS INTERACTIVOS",
+                title: "Simuladores de Patógenos<br>VIH · Sífilis · Más",
+                subhead: "Aprende jugando — entiende las consecuencias del tratamiento tardío",
+                description: "Quería que los usuarios experimentaran enfermedades y las consecuencias de no tratarlas de forma interactiva. La sífilis puede esconderse durante años. El VIH requiere disciplina de por vida. Estos simuladores lo hacen tangible.",
+                syph_title: "Sífilis",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "La sífilis es un gran simulador. Nuestro juego muestra cómo se oculta y por qué es importante tratarla a tiempo. Administra el medicamento y vence a la bacteria.",
+                hiv_title: "VIH",
+                hiv_badge: "Virus de Inmunodeficiencia",
+                hiv_desc: "Un juego interactivo que muestra por qué es importante comenzar el tratamiento del VIH a tiempo. Administra el medicamento y vence al virus.",
+                crypto_title: "¿Por qué criptomonedas?",
+                crypto_anon: "🔒 Anónimo — nadie te reconocerá",
+                crypto_fast: "⚡ Instantáneo — sin bancos",
+                crypto_global: "🌍 Global — desde cualquier país",
+                crypto_value: "📉 Está barato ahora — tu donación tiene más peso",
+                donate_btn: "❤️ Apoyar el proyecto",
+                footer: "Open source · Anónimo · Disponible en 8 idiomas"
+            },
+            tr: {
+                badge: "ETKİLEŞİMLİ TIBBİ SİMÜLATÖRLER",
+                title: "Patojen Simülatörleri<br>HIV · Frengi · Daha Fazlası",
+                subhead: "Oynayarak öğren — geç tedavinin sonuçlarını anla",
+                description: "Kullanıcıların hastalıkları ve tedavi edilmeyen durumların sonuçlarını interaktif şekilde deneyimlemesini istedim. Frengi yıllarca vücutta gizlenebilir. HIV ömür boyu disiplin gerektirir.",
+                syph_title: "Frengi",
+                syph_badge: "Treponema Pallidum",
+                syph_desc: "Frengi büyük bir simülatördür. Oyunumuz nasıl gizlendiğini ve zamanında tedavinin önemini gösteriyor. İlacı uygula ve bakterileri yen.",
+                hiv_title: "HIV",
+                hiv_badge: "Bağışıklık Yetmezlik Virüsü",
+                hiv_desc: "HIV tedavisine zamanında başlamanın neden önemli olduğunu gösteren interaktif bir oyun. İlacı uygula ve virüsü yen.",
+                crypto_title: "Neden kripto para?",
+                crypto_anon: "🔒 Anonim — kimse bilmez",
+                crypto_fast: "⚡ Anında — banka yok",
+                crypto_global: "🌍 Küresel — her ülkeden",
+                crypto_value: "📉 Şimdi ucuz — bağışınız daha değerli",
+                donate_btn: "❤️ Projeyi destekle",
+                footer: "Açık kaynak · Anonim · 8 dilde mevcut"
+            },
+            zh: {
+                badge: "交互式医学模拟器",
+                title: "病原体模拟器<br>HIV · 梅毒 · 更多",
+                subhead: "通过游戏学习 — 了解延迟治疗的后果",
+                description: "我希望用户通过互动游戏体验疾病和不治疗的后果。梅毒可以在体内隐藏数年。HIV需要终身纪律。这些模拟器让这一切变得具体。",
+                syph_title: "梅毒",
+                syph_badge: "苍白密螺旋体",
+                syph_desc: "梅毒是一个伟大的模拟者。我们的互动游戏展示了它如何伪装以及为什么及时治疗很重要。服用药物并击败细菌。",
+                hiv_title: "HIV",
+                hiv_badge: "免疫缺陷病毒",
+                hiv_desc: "一个互动游戏，展示为什么及时开始HIV治疗很重要。服用药物并击败病毒。",
+                crypto_title: "为什么选择加密货币？",
+                crypto_anon: "🔒 匿名 — 没人会知道",
+                crypto_fast: "⚡ 即时 — 无需银行",
+                crypto_global: "🌍 全球 — 任何国家",
+                crypto_value: "📉 现在很便宜 — 您的捐赠更有价值",
+                donate_btn: "❤️ 支持项目",
+                footer: "开源 · 匿名 · 提供8种语言"
+            },
+            ja: {
+                badge: "インタラクティブ医療シミュレーター",
+                title: "病原体シミュレーター<br>HIV · 梅毒 · その他",
+                subhead: "ゲームで学ぶ — 治療遅延の結果を理解する",
+                description: "ユーザーが対話的に病気と未治療の結果を体験してほしいと思いました。梅毒は何年も体内に隠れています。HIVは生涯にわたる規律を必要とします。",
+                syph_title: "梅毒",
+                syph_badge: "トレポネーマ・パリダム",
+                syph_desc: "梅毒は偉大なシミュレーターです。当ゲームはその隠れ方とタイムリーな治療の重要性を示します。薬を投与して細菌を倒しましょう。",
+                hiv_title: "HIV",
+                hiv_badge: "免疫不全ウイルス",
+                hiv_desc: "タイムリーなHIV治療の重要性を示すインタラクティブゲーム。薬を投与してウイルスを倒しましょう。",
+                crypto_title: "なぜ暗号通貨か？",
+                crypto_anon: "🔒 匿名 — 誰も知らない",
+                crypto_fast: "⚡ 即時 — 銀行不要",
+                crypto_global: "🌍 グローバル — どの国からでも",
+                crypto_value: "📉 今は安い — あなたの寄付の価値が上がる",
+                donate_btn: "❤️ プロジェクトを支援",
+                footer: "オープンソース · 匿名 · 8言語対応"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+            if (!t) return;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.innerHTML = t[key];
+            });
+
+            // Update cards
+            const cardsContainer = document.getElementById('cardsContainer');
+            cardsContainer.innerHTML = `
+                <div class="card">
+                    <div class="card-icon">〰</div>
+                    <h3>${t.syph_title} <span>${t.syph_badge}</span></h3>
+                    <p class="card-description">${t.syph_desc}</p>
+                    <a href="/syph/" class="card-link" target="_blank">${lang === 'en' ? 'Play Syphilis →' : lang === 'ru' ? 'Играть в сифилис →' : lang === 'fr' ? 'Jouer Syphilis →' : lang === 'de' ? 'Syphilis spielen →' : lang === 'es' ? 'Jugar Sífilis →' : lang === 'tr' ? 'Frengi oyna →' : lang === 'zh' ? '玩梅毒 →' : '梅毒をプレイ →'}</a>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🦠</div>
+                    <h3>${t.hiv_title} <span>${t.hiv_badge}</span></h3>
+                    <p class="card-description">${t.hiv_desc}</p>
+                    <a href="/hiv/" class="card-link" target="_blank">${lang === 'en' ? 'Play HIV →' : lang === 'ru' ? 'Играть в ВИЧ →' : lang === 'fr' ? 'Jouer VIH →' : lang === 'de' ? 'HIV spielen →' : lang === 'es' ? 'Jugar VIH →' : lang === 'tr' ? 'HIV oyna →' : lang === 'zh' ? '玩HIV →' : 'HIVをプレイ →'}</a>
+                </div>
+            `;
+        }
+
+        // Language switcher UI
+        const languages = ['en', 'ru', 'fr', 'de', 'es', 'tr', 'zh', 'ja'];
+        const langNames = { en: 'EN', ru: 'RU', fr: 'FR', de: 'DE', es: 'ES', tr: 'TR', zh: '中文', ja: '日本語' };
+
+        const switcher = document.getElementById('langSwitcher');
+        languages.forEach(lang => {
+            const btn = document.createElement('button');
+            btn.className = 'lang-btn' + (lang === 'en' ? ' active' : '');
+            btn.textContent = langNames[lang];
+            btn.onclick = () => {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                updateLanguage(lang);
+            };
+            switcher.appendChild(btn);
+        });
+
+        // Modal logic
+        const modal = document.getElementById('donateModal');
+        const donateBtn = document.getElementById('donateBtn');
+        const closeModal = document.getElementById('closeModal');
+
+        donateBtn.onclick = () => modal.style.display = 'flex';
+        closeModal.onclick = () => modal.style.display = 'none';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+        // Copy to clipboard for addresses
+        const usdtAddr = document.getElementById('usdtAddr');
+        const shibAddr = document.getElementById('shibAddr');
+        [usdtAddr, shibAddr].forEach(el => {
+            el.onclick = () => {
+                navigator.clipboard.writeText(el.innerText);
+                alert('Address copied!');
+            };
+        });
+
+        // Initialize
+        updateLanguage('en');
+    </script>
+</body>
+</html>

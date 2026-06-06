@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HIV Simulator</title>
+<link rel="canonical" href="https://marketglare.github.io/hiv" />
+<meta name="description" content="An interactive game showing why it's important to start HIV treatment on time. Administer medication and defeat the virus">
+<meta name="keywords" content="hiv, treatment, simulator, game, health, aids">
+<style>
+:root{--bg:#07121a;--hud:#0b1a22;--accent:#ff6b6b;--text:#e6f6ff;--muted:#6f8b92}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial}
+#app{height:100%;display:flex;gap:12px;padding:12px;box-sizing:border-box}
+#left{flex:1;position:relative;border-radius:8px;overflow:hidden;background:linear-gradient(180deg,#052026,#07121a)}
+canvas{width:100%;height:100%;display:block}
+.hud{width:360px;background:rgba(6,18,24,0.86);padding:14px;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+.hud h2{margin:0 0 8px 0;font-size:18px}
+.stat{font-size:14px;margin:6px 0}
+.controls{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+button{padding:10px 12px;border-radius:8px;border:0;background:var(--accent);color:#091215;font-weight:700;cursor:pointer}
+button.muted{background:#355;cursor:default;color:#ccc}
+.msg{background:rgba(255,255,255,0.06);padding:8px;border-radius:8px;font-size:13px;min-height:54px}
+.small{font-size:13px;color:#9fb3c0}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.legend .item{display:flex;gap:6px;align-items:center}
+.dot{width:16px;height:16px;border-radius:50%;background:#d7f0ff;display:inline-block}
+.dot.ill{background:#f6e08b}
+.dot.dead{background:#4b5960}
+.banner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#071218;padding:14px;border-radius:10px;display:none;z-index:40}
+.rules{white-space:pre-wrap;background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;margin-top:8px;font-size:13px}
+.langs, .donate {margin-top:8px; display:flex; gap:8px; flex-wrap:wrap}
+.langs button, .donate button {background:var(--muted); color:var(--text); padding:8px 10px; border-radius:8px; font-weight:700; cursor:pointer; border:0}
+.langs button.accent, .donate button.accent {background:var(--accent); color:#091215}
+.donateBox{display:none;background:rgba(255,255,255,0.04);padding:10px;border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:13px}
+.topArtWindow{margin-bottom:8px}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-inner{position:relative;background:#07121a;padding:18px;border-radius:10px;max-width:520px;color:var(--text);box-shadow:0 10px 40px rgba(0,0,0,0.6);max-height:80vh;overflow:auto}
+.modal-close{position:absolute;right:12px;top:8px;background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer}
+.modal-close-btn{margin-top:12px;padding:8px 12px;border-radius:8px;border:0;background:#333;color:#fff;cursor:pointer}
+.lang-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px}
+.lang-grid button{padding:8px;border-radius:8px;border:0;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="left">
+ <canvas id="stage"></canvas>
+ <div class="banner" id="banner"></div>
+ </div>
+ <div class="hud">
+ <h2 id="hdrTitle">HIV Simulator</h2>
+ <div class="stat" id="statCD4"><strong>CD4:</strong> 800 / 1200</div>
+ <div class="stat" id="statVL"><strong>Viral load:</strong> 50 000 copies/ml</div>
+ <div class="stat" id="statDays"><strong>Days:</strong> 0</div>
+ <div class="stat" id="statStage"><strong>Stage:</strong> Early</div>
+ <div class="stat topArtWindow" id="artWindowStat"><strong>ART window:</strong> —</div>
+ <div class="controls">
+ <button id="startBtn" class="accentBtn">Start</button>
+ <button id="artBtn" class="muted">Take ART</button>
+ </div>
+ <div class="msg" id="msg">Press "Start" to begin</div>
+ <div class="rules" id="rules"></div>
+ <div class="small" id="visualExplain" style="margin-top:8px"></div>
+
+ <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+ <button id="langsBtn" class="accentBtn" style="background:var(--accent);">Languages</button>
+ </div>
+
+ <div style="margin-top:8px;">
+ <button id="donateBtn" class="accentBtn" style="background:var(--accent);">Donate</button>
+ </div>
+
+ <div class="donateBox" id="donateBox" style="display:none">
+USDT (TRC-20) address: TSR63AMR4ToAyhFvGsBJ4C8ikAeM6Fn5TT
+SHIB (ERC-20) address: 0x4C97c50666a5553326d2289e2dD683dE30145A33
+Email: marketglare@gmail.com
+ </div>
+ </div>
+</div>
+
+<!-- Modal skeleton -->
+<div id="modalBackdrop" class="modal-backdrop">
+ <div id="modalInner" class="modal-inner"></div>
+</div>
+
+<script>
+/* ---------- Конфигурация ---------- */
+const CONFIG = {
+ gameDay_s: 30,
+ artInterval_s: 30,
+ artGrace_s: 10,
+ visualCells: 50,
+ cd4_max_visual: 1200,
+ start_cd4: 800,
+ start_vl: 50000,
+ vl_growth_multiplier_miss: 2.5,
+ vl_burst_threshold: 10000,
+ cd4_loss_per_burst_day: 60,
+ cd4_loss_base_rate: 5,
+ mutation_increase_per_miss: 0.02,
+ art_base_efficacy: 0.97, // max possible efficacy; applied gradually in model
+ virus_smooth_speed: 0.0008,
+ virus_noise_scale: 0.7,
+ virus_movement_speed_factor: 0.5,
+ // realistic virus visual sizing: scale factor for radius (pixels per log10 copies/ml)
+ virus_radius_scale: 4,
+ virus_radius_min: 8,
+ virus_radius_max: 48
+};
+/* ---------- Состояние ---------- */
+let state = {
+ running:false,
+ elapsedReal_s:0,
+ days:0,
+ lastWindowIndex:-1,
+ windowActivatedAtReal_s:null,
+ artTakenInWindow:false,
+ cd4: CONFIG.start_cd4,
+ vl: CONFIG.start_vl,
+ artEfficacy: CONFIG.art_base_efficacy,
+ missedConsecutive:0,
+ cellVisuals: [],
+ virusPos: {x:0,y:0},
+ virusSeed: Math.random()*1000,
+ artInfectionBlockedUntil: 0,
+ currentLang: 'en' // default English
+};
+/* ---------- Canvas ---------- */
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+function resize(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; initCellPositions(); draw(); }
+window.addEventListener('resize', resize);
+
+/* ---------- HUD ---------- */
+const startBtn = document.getElementById('startBtn');
+const artBtn = document.getElementById('artBtn');
+const msg = document.getElementById('msg');
+const statDays = document.getElementById('statDays');
+const statCD4 = document.getElementById('statCD4');
+const statVL = document.getElementById('statVL');
+const statStage = document.getElementById('statStage');
+const banner = document.getElementById('banner');
+const artWindowStat = document.getElementById('artWindowStat');
+const langsBtn = document.getElementById('langsBtn');
+const donateBtn = document.getElementById('donateBtn');
+const donateBox = document.getElementById('donateBox');
+const hdrTitle = document.getElementById('hdrTitle');
+const visualExplain = document.getElementById('visualExplain');
+
+/* Modal elements */
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalInner = document.getElementById('modalInner');
+function showModal(html){
+ modalInner.innerHTML = html + `<div style="text-align:right"><button id="modalCloseBtn" class="modal-close-btn">Close</button></div>`;
+ modalBackdrop.style.display = 'flex';
+ const btn = document.getElementById('modalCloseBtn');
+ if(btn) btn.addEventListener('click', closeModal);
+ // close when clicking outside
+}
+function closeModal(){ modalBackdrop.style.display = 'none'; modalInner.innerHTML = ''; }
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop) closeModal(); });
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, (m)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------- Инициализация клеток ---------- */
+function initCellPositions(){
+ state.cellVisuals.length = 0;
+ const W = canvas.width, H = canvas.height;
+ for(let i=0;i<CONFIG.visualCells;i++){
+ const margin = 40;
+ const x = margin + Math.random()*(W-2*margin);
+ const y = margin + Math.random()*(H-2*margin);
+ state.cellVisuals.push({x,y,status:'healthy',hitUntil:0});
+ }
+}
+
+/* ---------- Переводы (все языки восстановлены) ---------- */
+const TRANSLATIONS = {
+ ru: { /* ... русские строки ... */defeat: "💀 ПОРАЖЕНИЕ", defeatMsg: "Иммунитет уничтожен. При соблюдении терапии можно прожить десятилетия." ,missWarning: "⚠️ Пропуск дозы! Вирус размножается, CD4 падает.", hdrTitle:'Симулятор ВИЧ', start:'Старт', takeART:'Принять АРТ', msgStart:'Нажмите «Старт», чтобы начать', rules:`Правила / стадии\n- Начальная: CD4 ≥ 500. Вирус присутствует, но иммунитет ещё относительно силён.\n- Понижение: 200 ≤ CD4 < 500. Замечается снижение иммунитета.\n- Критично / СПИД: CD4 < 200 — высокий риск оппортунистических инфекций; при CD4 < 50 — крайне низкий иммунитет.\nНажимайте кнопку "Принять АРТ" один раз в 30s; после активации кнопки у вас есть 10s, в течение которого приём засчитывается.`, CD4_label:'CD4:', VL_label:'Вирусная нагрузка:', copies_ml:'коп/мл', Days_label:'Дней:', Stage_label:'Стадия:', stage_early:'Начальная', stage_decline:'Понижение', stage_crit:'Критично (<200)', stage_aids_lt50:'СПИД (<50)', ART_taken_msg:'АРТ принята. ВН начинает снижаться.', ART_too_late:'Слишком поздно — окно приема завершено.', msg_running:'Игра запущена. Нажимайте "Принять АРТ" один раз в 30s. После активации кнопки — в течение 10s.', ART_window_label:'Окно АРТ:', visual_label:'Визуал:', donate_label:'Донаты', langs_label:'Языки' },
+ en: { defeat: "💀 DEFEAT", defeatMsg: "Immunity destroyed. With adhered therapy, decades can be lived.", missWarning: "⚠️ Dose missed! Virus multiplies, CD4 drops.",hdrTitle:'HIV Simulator', start:'Start', takeART:'Take ART', msgStart:'Press "Start" to begin', rules:`Rules / stages\n- Early: CD4 ≥ 500.\n- Decline: 200 ≤ CD4 < 500.\n- Critical / AIDS: CD4 < 200; <50 very low immunity.\nPress "Take ART" once every 30s; after the window there is a 10s grace period.`, CD4_label:'CD4:', VL_label:'Viral load:', copies_ml:'copies/ml', Days_label:'Days:', Stage_label:'Stage:', stage_early:'Early', stage_decline:'Decline', stage_crit:'Critical (<200)', stage_aids_lt50:'AIDS (<50)', ART_taken_msg:'ART taken. VL will decrease over time.', ART_too_late:'Too late — window closed.', msg_running:'Game started. Press "Take ART" once every 30s. 10s grace after window.', ART_window_label:'ART window:', visual_label:'Visual legend:', donate_label:'Donate', langs_label:'Languages' },
+ de: { defeat: "💀 NIEDERLAGE", defeatMsg: "Das Immunsystem ist zerstört. Bei Einhaltung der Therapie kann man Jahrzehnte leben.", missWarning: "⚠️ Dosis vergessen! Das Virus vermehrt sich, CD4 sinkt.",hdrTitle:'HIV-Simulator', start:'Start', takeART:'ART einnehmen', msgStart:'Drücken Sie "Start", um zu beginnen', rules:`Regeln / Stadien\n- Frühstadium: CD4 ≥ 500.\n- Abnahme: 200 ≤ CD4 < 500.\n- Kritisch / AIDS: CD4 < 200.\nDrücken Sie "ART einnehmen" alle 30s; nach dem Fenster gibt es 10s Kulanzzeit.`, CD4_label:'CD4:', VL_label:'Viruslast:', copies_ml:'Kopien/ml', Days_label:'Tage:', Stage_label:'Stadium:', stage_early:'Frühstadium', stage_decline:'Abnahme', stage_crit:'Kritisch (<200)', stage_aids_lt50:'AIDS (<50)', ART_taken_msg:'ART eingenommen. VL reduziert sich mit течением времени.', ART_too_late:'Zu spät — Fenster geschlossen.', msg_running:'Spiel gestartet. ART alle 30s nehmen. 10s Kulanz danach.', ART_window_label:'ART-Fenster:', visual_label:'Visuelle Legende:', donate_label:'Spenden', langs_label:'Sprachen' },
+ fr: { defeat: "💀 DÉFAITE", defeatMsg: "L'immunité est détruite. Avec un traitement adhéré, on peut vivre des décennies.", missWarning: "⚠️ Dose oubliée! Le virus se multiplie, CD4 baisse.",hdrTitle:"Simulateur VIH", start:"Démarrer", takeART:"Prendre ART", msgStart:'Appuyez sur "Démarrer" pour commencer', rules:`Règles / stades\n- Précoce : CD4 ≥ 500.\n- Déclin : 200 ≤ CD4 < 500.\n- Critique / SIDA : CD4 < 200.\nAppuyez sur "Prendre ART" toutes les 30s ; 10s de grâce après la fenêtre.`, CD4_label:'CD4:', VL_label:'Charge virale:', copies_ml:'copies/ml', Days_label:'Jours:', Stage_label:'Phase:', stage_early:'Précoce', stage_decline:'Déclin', stage_crit:'Critique (<200)', stage_aids_lt50:'SIDA (<50)', ART_taken_msg:'ART prise. VL diminue progressivement.', ART_too_late:'Trop tard — la fenêtre est fermée.', msg_running:'Jeu démarré. Prendre ART toutes les 30s. 10s de grâce.', ART_window_label:'Fenêtre ART:', visual_label:'Légende visuelle:', donate_label:'Faire un don', langs_label:'Langues' },
+ es: { defeat: "💀 DERROTA", defeatMsg: "El sistema inmunológico está destruido. Con la terapia cumplida, se pueden vivir décadas.", missWarning: "⚠️ ¡Dosis omitida! El virus se multiplica, CD4 disminuye.",hdrTitle:"Simulador VIH", start:"Iniciar", takeART:"Tomar ART", msgStart:'Presione "Iniciar" para comenzar', rules:`Reglas / etapas\n- Inicial: CD4 ≥ 500.\n- Descenso: 200 ≤ CD4 < 500.\n- Crítico / SIDA: CD4 < 200.\nPresione "Tomar ART" cada 30s; 10s de gracia tras la ventana.`, CD4_label:'CD4:', VL_label:'Carga viral:', copies_ml:'copias/ml', Days_label:'Días:', Stage_label:'Etapa:', stage_early:'Inicial', stage_decline:'Descenso', stage_crit:'Crítico (<200)', stage_aids_lt50:'SIDA (<50)', ART_taken_msg:'ART tomada. VL disminuirá con el tiempo.', ART_too_late:'Demasiado tarde — ventana cerrada.', msg_running:'Juego iniciado. Tomar ART cada 30s. 10s de gracia.', ART_window_label:'Ventana ART:', visual_label:'Leyenda visual:', donate_label:'Donar', langs_label:'Idiomas' },
+ zh: { defeat: "💀 失败", defeatMsg: "免疫系统被摧毁。您存活了 天。遵守治疗可以活几十年。", missWarning: "⚠️ 漏服剂量！病毒繁殖，CD4 下降。",hdrTitle:"艾滋病毒模拟器", start:"开始", takeART:"服用 ART", msgStart:'按“开始”以启动。', rules:`规则 / 阶段\n- 早期：CD4 ≥ 500。\n- 下降：200 ≤ CD4 < 500。\n- 危重 / 艾滋病：CD4 < 200。\n每30s按一次“服用 ART”；窗口后有10s宽限期。`, CD4_label:'CD4:', VL_label:'病毒载量:', copies_ml:'拷贝/ml', Days_label:'天数:', Stage_label:'阶段:', stage_early:'早期', stage_decline:'下降', stage_crit:'危重 (<200)', stage_aids_lt50:'艾滋病 (<50)', ART_taken_msg:'已服用 ART。载量将逐步下降。', ART_too_late:'太晚 — 窗口已结束。', msg_running:'游戏开始。每30s 服用 ART。窗口后10s 宽限期。', ART_window_label:'ART 窗口:', visual_label:'视觉说明:', donate_label:'捐赠', langs_label:'语言' },
+ tr: { defeat: "💀 KAYBİ", defeatMsg: "İmmün sistem yok edildi. Tedaviye uyulduğunda	desenler yaşanabilir.", missWarning: "⚠️ Doz atlandı! Virüs çoğalıyor, CD4 düşüyor.",hdrTitle:"HIV Simülatörü", start:"Başlat", takeART:"ART al", msgStart:'Başlamak için "Başlat"a basın', rules:`Kurallar / evreler\n- Erken: CD4 ≥ 500.\n- Düşüş: 200 ≤ CD4 < 500.\n- Kritik / AIDS: CD4 < 200.\nHer 30s'de bir "ART al" düğmesine basın; pencere sonrası 10s tolerans süresi.`, CD4_label:'CD4:', VL_label:'Viral yük:', copies_ml:'kopya/ml', Days_label:'Günler:', Stage_label:'Aşama:', stage_early:'Erken', stage_decline:'Düşüş', stage_crit:'Kritik (<200)', stage_aids_lt50:'AIDS (<50)', ART_taken_msg:'ART alındı. VL zamanla düşecek.', ART_too_late:'Çok geç — pencere kapandı.', msg_running:'Oyun başladı. Her 30s\'de ART al. 10s tolerans.', ART_window_label:'ART penceresi:', visual_label:'Görsel açıklama:', donate_label:'Bağış', langs_label:'Diller' },
+ ja: { hdrTitle:"HIVシミュレーター", start:"開始", takeART:"ARTを服用", msgStart:'「開始」を押して始めてください。', rules:`ルール / ステージ\n- 初期：CD4 ≥ 500。\n- 低下：200 ≤ CD4 < 500。\n- 重大 / AIDS：CD4 < 200。\n30秒ごとに「ARTを服用」を1回押してください；ウィンドウ後に10秒の猶予あり。`, CD4_label:'CD4:', VL_label:'ウイルス量:', copies_ml:'コピー/ml', Days_label:'日数:', Stage_label:'ステージ:', stage_early:'初期', stage_decline:'低下', stage_crit:'重大 (<200)', stage_aids_lt50:'AIDS (<50)', ART_taken_msg:'ARTを服用しました。VLは徐々に低下します。', ART_too_late:'遅すぎます — ウィンドウは終了しました。', msg_running:'ゲーム開始。30秒ごとにARTを服用。ウィンドウ後10秒猶予。', ART_window_label:'ART ウィンドウ:', visual_label:'ビジュアルの説明:', donate_label:'寄付', langs_label:'言語' }
+};
+
+/* t helper */
+function t(key){
+ const L = state.currentLang || 'en';
+ return (TRANSLATIONS[L] && TRANSLATIONS[L][key]) || (TRANSLATIONS['en'][key] || key);
+}
+
+/* ---------- HUD update ---------- */
+function updateHUD(){
+ statCD4.innerHTML = '<strong>' + t('CD4_label') + '</strong> ' + Math.max(0, Math.round(state.cd4)) + ' / ' + CONFIG.cd4_max_visual;
+ statVL.innerHTML = '<strong>' + t('VL_label') + '</strong> ' + Math.round(state.vl).toLocaleString() + ' ' + t('copies_ml');
+ statDays.innerHTML = '<strong>' + t('Days_label') + '</strong> ' + Math.floor(state.days);
+ let stage = t('stage_early');
+ if(state.cd4 < 50) stage = t('stage_aids_lt50');
+ else if(state.cd4 < 200) stage = t('stage_crit');
+ else if(state.cd4 < 500) stage = t('stage_decline');
+ statStage.innerHTML = '<strong>' + t('Stage_label') + '</strong> ' + stage;
+ artBtn.classList.toggle('muted', !state.running || !canPressART());
+}
+
+/* ---------- ART window logic ---------- */
+function currentWindowIndex(){ return Math.floor(state.elapsedReal_s / CONFIG.artInterval_s); }
+function canPressART(){
+ if(!state.running) return false;
+ if(state.windowActivatedAtReal_s === null) return false;
+ const sinceWindowStart = state.elapsedReal_s - state.windowActivatedAtReal_s;
+ return (!state.artTakenInWindow) && (sinceWindowStart <= CONFIG.artInterval_s + CONFIG.artGrace_s);
+}
+
+/*
+ Scientific correction:
+ - A single pill does not instantaneously reduce VL by 97% at once.
+ - We model ART effect as a rapid but not instantaneous exponential decay of VL while ART effect is active.
+ - Taking ART marks artTakenInWindow and starts an infection-block interval; VL reduction occurs over simulated time.
+*/
+function pressART(){
+ if(!state.running) return;
+ if(state.windowActivatedAtReal_s === null) state.windowActivatedAtReal_s = state.elapsedReal_s;
+ const sinceWindowStart = state.elapsedReal_s - state.windowActivatedAtReal_s;
+ if(sinceWindowStart <= CONFIG.artInterval_s + CONFIG.artGrace_s){
+   state.artTakenInWindow = true;
+   state.missedConsecutive = 0;
+   // block new cell infection for next artInterval_s seconds
+   state.artInfectionBlockedUntil = state.elapsedReal_s + CONFIG.artInterval_s;
+   // don't instant-set VL*=0.03; instead mark that ART effect is active and will reduce VL exponentially.
+   // we keep artEfficacy as max effect parameter (0.97 = up to 97% reduction rate over several days).
+   state.vl_effect_active_until = state.elapsedReal_s + CONFIG.artInterval_s; // effect window (simplified)
+   showMsg(t('ART_taken_msg'));
+ } else {
+   showMsg(t('ART_too_late'));
+ }
+ updateHUD();
+}
+
+/* ---------- Window transition ---------- */
+function processWindowTransition(newWindowIdx){
+ if(!state.artTakenInWindow && state.windowActivatedAtReal_s !== null){
+   state.missedConsecutive += 1;
+   state.vl *= CONFIG.vl_growth_multiplier_miss;
+   const prob = 1 - Math.pow(1 - CONFIG.mutation_increase_per_miss, state.missedConsecutive);
+   if(Math.random() < prob) state.artEfficacy = Math.max(0.5, state.artEfficacy - 0.03);
+   showMsg(t('missWarning') || 'Missed dose — viral replication increases.');
+ }
+ state.windowActivatedAtReal_s = state.elapsedReal_s;
+ state.artTakenInWindow = false;
+}
+
+/* ---------- Simulation step ---------- */
+let lastTick = performance.now();
+function step(){
+ const now = performance.now();
+ const dt_s = (now - lastTick)/1000;
+ lastTick = now;
+ if(!state.running){ requestAnimationFrame(step); return; }
+ state.elapsedReal_s += dt_s;
+ state.days = state.elapsedReal_s / CONFIG.gameDay_s;
+ const wIdx = currentWindowIndex();
+ if(wIdx !== state.lastWindowIndex){
+   processWindowTransition(wIdx);
+   state.lastWindowIndex = wIdx;
+ }
+ const fractionOfDay = dt_s / CONFIG.gameDay_s;
+
+ // CD4 dynamics (simple model)
+ if(state.vl > CONFIG.vl_burst_threshold) state.cd4 -= CONFIG.cd4_loss_per_burst_day * fractionOfDay;
+ else if(state.vl > 1000) state.cd4 -= (CONFIG.cd4_loss_base_rate/2) * fractionOfDay;
+ else if(state.artEfficacy > 0.8 && state.missedConsecutive === 0) state.cd4 += 4 * fractionOfDay;
+ state.cd4 -= 0.05 * fractionOfDay;
+
+ // Viral load dynamics:
+ // - If ART effect active (vl_effect_active_until in future), apply exponential decay rate proportional to efficacy.
+ // - Decay rate chosen so that high efficacy (0.97) produces multi-log reduction over days, not instant.
+ if(state.vl_effect_active_until && state.elapsedReal_s < state.vl_effect_active_until){
+   // decay constant per second (tunable). We map efficacy [0.5..0.97] to decay rates.
+   const eff = state.artEfficacy;
+   // dailyDecayFactor ~ exp(-k * eff) ; choose k so that eff~0.97 yields ~0.9 per day (10x reduction ~ few days)
+   const k_per_day = 2.5 * eff; // tuned parameter
+   const decay_per_dt = Math.exp(-k_per_day * fractionOfDay);
+   state.vl *= decay_per_dt;
+ } else {
+   // no ART effect -> growth
+   state.vl *= Math.pow(1.02, fractionOfDay*10);
+ }
+ state.cd4 = Math.max(0, Math.min(CONFIG.cd4_max_visual, state.cd4));
+ state.vl = Math.max(1, state.vl);
+
+ // СТОХАСТИЧНОЕ ДВИЖЕНИЕ ВИРУСА (случайные блуждания)
+const W = canvas.width, H = canvas.height;
+if (W > 0 && H > 0) {
+    // Добавляем случайное смещение
+    const randomAngle = Math.random() * Math.PI * 2;
+    const randomStep = 0.5 + Math.random() * 1.5;
+    
+    // Сохраняем предыдущую позицию или инициализируем
+    if (!state.virusVx) {
+        state.virusVx = (Math.random() - 0.5) * 2;
+        state.virusVy = (Math.random() - 0.5) * 2;
+    }
+    
+    // Меняем направление случайно (иногда)
+    if (Math.random() < 0.02) {
+        state.virusVx += (Math.random() - 0.5) * 1;
+        state.virusVy += (Math.random() - 0.5) * 1;
+        // Нормализуем скорость
+        const len = Math.hypot(state.virusVx, state.virusVy);
+        if (len > 0) {
+            state.virusVx = (state.virusVx / len) * 1.5;
+            state.virusVy = (state.virusVy / len) * 1.5;
+        }
+    }
+    
+    // Двигаем вирус
+    let newX = state.virusPos.x + state.virusVx;
+    let newY = state.virusPos.y + state.virusVy;
+    
+    // Отскок от границ
+    if (newX < 30) { newX = 30; state.virusVx = Math.abs(state.virusVx); }
+    if (newX > W - 30) { newX = W - 30; state.virusVx = -Math.abs(state.virusVx); }
+    if (newY < 30) { newY = 30; state.virusVy = Math.abs(state.virusVy); }
+    if (newY > H - 30) { newY = H - 30; state.virusVy = -Math.abs(state.virusVy); }
+    
+    state.virusPos.x = newX;
+    state.virusPos.y = newY;
+}
+
+
+ // Fixed/realistic virus visual size based on VL log10 but clamped
+ const vlLog = Math.log10(state.vl + 1);
+ const virusRadius = Math.min(CONFIG.virus_radius_max, Math.max(CONFIG.virus_radius_min, CONFIG.virus_radius_scale * vlLog));
+
+ // infection blocked flag for current moment
+ const infectionBlocked = (state.artInfectionBlockedUntil && (state.elapsedReal_s < state.artInfectionBlockedUntil));
+
+ for(const cell of state.cellVisuals){
+   const dx = cell.x - state.virusPos.x, dy = cell.y - state.virusPos.y;
+   const dist = Math.hypot(dx,dy);
+   if(dist < virusRadius + 10){
+     // REQUIREMENT 1: if ART was taken and within blocked interval, healthy cells must NOT become infected
+     if(!infectionBlocked){
+       if(cell.status === 'healthy' && Math.random() < 0.25){
+         cell.status = 'infected';
+         cell.hitUntil = performance.now() + CONFIG.gameDay_s*1000*2;
+       }
+       if(state.vl > CONFIG.vl_burst_threshold && Math.random() < 0.01) cell.status = 'dead';
+     }
+   }
+   if(cell.status === 'infected' && cell.hitUntil && performance.now() > cell.hitUntil){
+     if(state.cd4 > 400 && Math.random() < 0.6) cell.status = 'healthy';
+     else if(Math.random() < 0.25) cell.status = 'dead';
+     else cell.status = 'infected';
+   }
+ }
+
+ const deadCount = state.cellVisuals.filter(c=>c.status==='dead').length;
+ const deadEffect = (deadCount / CONFIG.visualCells) * 200;
+ state.displayed_cd4 = Math.max(0, state.cd4 - deadEffect);
+ if(state.cd4 <= 0) finishGame(false);
+ updateHUD();
+ draw();
+ requestAnimationFrame(step);
+}
+
+/* ---------- Render ---------- */
+function draw(){
+ const W = canvas.width, H = canvas.height;
+ ctx.clearRect(0,0,W,H);
+ const g = ctx.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,'#052026'); g.addColorStop(1,'#07121a');
+ ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+ for(let i=0;i<CONFIG.visualCells;i++){
+   const c = state.cellVisuals[i];
+   ctx.beginPath();
+   ctx.arc(c.x, c.y, 10, 0, Math.PI*2);
+   if(c.status === 'healthy'){ ctx.fillStyle = '#d7f0ff'; ctx.strokeStyle = '#a6d6ea'; }
+   else if(c.status === 'infected'){ ctx.fillStyle = '#f6e08b'; ctx.strokeStyle = '#d6b74a'; }
+   else { ctx.fillStyle = '#4b5960'; ctx.strokeStyle = '#353c42'; }
+   ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+ }
+ // virus visual (fixed proportion)
+ const vlLog = Math.log10(state.vl + 1);
+ const virusRadius = Math.min(CONFIG.virus_radius_max, Math.max(CONFIG.virus_radius_min, CONFIG.virus_radius_scale * vlLog));
+ ctx.beginPath();
+ ctx.arc(state.virusPos.x, state.virusPos.y, virusRadius, 0, Math.PI*2);
+ ctx.fillStyle = '#ff6b6b'; ctx.fill();
+
+ // ART window timer update
+ if(state.running && state.windowActivatedAtReal_s !== null){
+   const windowStart = state.windowActivatedAtReal_s;
+   const windowEnd = windowStart + CONFIG.artInterval_s;
+   const left = Math.max(0, windowEnd - state.elapsedReal_s);
+   const leftDisplay = Math.ceil(left);
+   const sinceStart = state.elapsedReal_s - windowStart;
+   let graceText = '';
+   if(sinceStart > CONFIG.artInterval_s){
+     const graceLeft = Math.ceil((CONFIG.artInterval_s + CONFIG.artGrace_s) - sinceStart);
+     if(graceLeft > 0) graceText = ` (+${graceLeft}s)`;
+   }
+   artWindowStat.innerHTML = `<strong>${t('ART_window_label')}</strong> ${leftDisplay}s${graceText}`;
+ } else {
+   artWindowStat.innerHTML = `<strong>${t('ART_window_label')}</strong> —`;
+ }
+}
+
+/* ---------- Finish ---------- */
+function finishGame(victory){
+    state.running = false;
+    if (victory) {
+        banner.textContent = 'Victory — simulation complete';
+        msg.textContent = 'Congratulations';
+    } else {
+        const daysSurvived = Math.floor(state.days);
+        const defeatMsgText = t('defeatMsg') || `Immunity lost. You survived ${daysSurvived} days.`;
+        banner.textContent = `${t('defeat') || 'Defeat'} — ${defeatMsgText}`;
+        msg.textContent = defeatMsgText;
+    }
+    banner.style.display = 'block';
+    updateHUD();
+    setTimeout(() => { banner.style.display = 'none'; }, 8000);
+}
+
+
+/* ---------- Controls ---------- */
+startBtn.addEventListener('click', ()=> {
+ state.running = true;
+ state.elapsedReal_s = 0;
+ state.days = 0;
+ state.lastWindowIndex = -1;
+ state.windowActivatedAtReal_s = null;
+ state.artTakenInWindow = false;
+ state.cd4 = CONFIG.start_cd4;
+ state.vl = CONFIG.start_vl;
+ state.artEfficacy = CONFIG.art_base_efficacy;
+ state.missedConsecutive = 0;
+ state.virusSeed = Math.random()*1000;
+ state.virusPos = {x: canvas.width*0.5, y: canvas.height*0.5};
+ state.artInfectionBlockedUntil = 0;
+ state.vl_effect_active_until = 0;
+ initCellPositions();
+ banner.classList.remove('show');
+ msg.textContent = t('msg_running');
+ lastTick = performance.now();
+ updateHUD();
+ requestAnimationFrame(step);
+});
+artBtn.addEventListener('click', ()=> { if(!state.running) return; pressART(); });
+
+/* ---------- Languages (modal) ---------- */
+const LOCALES = { en:{name:'English'}, fr:{name:'Français'}, es:{name:'Español'}, de:{name:'Deutsch'}, ru:{name:'Русский'}, tr:{name:'Türkçe'}, zh:{name:'中文'} , ja:{name:'日本語'} };
+let ACTIVE_LOCALE = state.currentLang;
+langsBtn.addEventListener('click', ()=> {
+ const buttons = Object.keys(LOCALES).map(code => {
+   const name = LOCALES[code].name;
+   return `<button data-l="${code}" ${code===ACTIVE_LOCALE?'style="outline:3px solid #fff"':''}>${escapeHtml(name)}</button>`;
+ }).join('');
+ const html = `<h2>${escapeHtml(t('langs_label'))}</h2><div class="lang-grid">${buttons}</div>`;
+ showModal(html);
+ const container = modalInner.querySelector('.lang-grid');
+ container.querySelectorAll('button').forEach(btn=>{
+   btn.addEventListener('click', ()=>{
+     const chosen = btn.getAttribute('data-l');
+     if(LOCALES[chosen]){
+       ACTIVE_LOCALE = chosen;
+       state.currentLang = chosen;
+       applyLocale();
+       closeModal();
+     }
+   });
+ });
+});
+
+/* applyLocale updates UI texts */
+function applyLocale(){
+ const L = state.currentLang;
+ const tr = TRANSLATIONS[L] || TRANSLATIONS['en'];
+ hdrTitle.textContent = tr.hdrTitle;
+ startBtn.textContent = tr.start;
+ artBtn.textContent = tr.takeART;
+ msg.textContent = tr.msgStart;
+ document.getElementById('rules').textContent = tr.rules;
+ visualExplain.innerHTML = `<strong>${tr.visual_label}</strong><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span> ${escapeHtml(L==='ru'?'Белая — здоровая CD4':'White — healthy CD4')}</span><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot ill"></span> ${escapeHtml(L==='ru'?'Жёлтая — заражённая/ослабленная (ещё учитывается в счёте CD4)':'Yellow — infected/weakened (still counts in CD4)')}</span><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot dead"></span> ${escapeHtml(L==='ru'?'Тёмная — мёртвая/утраченная (не учитывается в CD4)':'Dark — dead/lost (not counted in CD4)')}</span>`;
+ donateBtn.textContent = tr.donate_label;
+ langsBtn.textContent = tr.langs_label;
+ updateHUD();
+}
+
+/* ---------- Donate modal (requirement 2) ---------- */
+donateBtn.addEventListener('click', ()=> {
+ const txt = [
+ "USDT (TRC-20) address: TSR63AMR4ToAyhFvGsBJ4C8ikAeM6Fn5TT",
+   "SHIB (ERC-20) address: 0x4C97c50666a5553326d2289e2dD683dE30145A33",
+   "",
+   "Why crypto?",
+   "— Anonymous (no one will recognize you)",
+   "— Instant (no banks)",
+   "— Global (from any country)",
+   "— It's cheap now! Your donation carries more weight.",
+   "",
+   "Email: marketglare@gmail.com (en/ru)"
+ ].join("\n");
+ showModal("<h2>"+escapeHtml(t('donate_label'))+"</h2><pre style='white-space:pre-wrap'>"+escapeHtml(txt)+"</pre>");
+});
+
+/* ---------- Utility ---------- */
+function showMsg(s){ msg.textContent = s; }
+
+/* ---------- Init ---------- */
+window.addEventListener('load', ()=> {
+ const L = state.currentLang;
+ const tr = TRANSLATIONS[L];
+ hdrTitle.textContent = tr.hdrTitle;
+ startBtn.textContent = tr.start;
+ artBtn.textContent = tr.takeART;
+ msg.textContent = tr.msgStart;
+ document.getElementById('rules').textContent = tr.rules;
+ visualExplain.innerHTML = `<strong>${tr.visual_label}</strong><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span> ${escapeHtml('White — healthy CD4')}</span><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot ill"></span> ${escapeHtml('Yellow — infected/weakened (still counts in CD4)')}</span><br>
+ <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot dead"></span> ${escapeHtml('Dark — dead/lost (not counted in CD4)')}</span>`;
+ donateBtn.textContent = tr.donate_label;
+ langsBtn.textContent = tr.langs_label;
+ TRANSLATIONS.en.ART_window_label = 'ART window:';
+ resize();
+ initCellPositions();
+ updateHUD();
+ draw();
+});
+</script>
+</body>
+</html>
